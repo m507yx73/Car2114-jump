@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Машинка — прыжки через препятствия</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      background: #17212b;
+      color: white;
+      font-family: Arial, sans-serif;
+    }
+    .game {
+      width: min(900px, 100%);
+      padding: 16px;
+      text-align: center;
+    }
+    canvas {
+      display: block;
+      width: 100%;
+      border: 3px solid #ffffff55;
+      border-radius: 12px;
+      background: #f5b58c;
+      touch-action: manipulation;
+    }
+    button {
+      margin-top: 14px;
+      padding: 12px 30px;
+      border: 0;
+      border-radius: 10px;
+      background: #f5b633;
+      color: #17212b;
+      font-size: 18px;
+      font-weight: bold;
+      cursor: pointer;
+      touch-action: manipulation;
+    }
+    p { color: #d6e0e8; }
+  </style>
+</head>
+<body>
+  <main class="game">
+    <h1>Прыгающая машинка</h1>
+    <canvas id="game" width="900" height="420" aria-label="Игра: перепрыгивай препятствия"></canvas>
+    <button id="jump">Прыжок</button>
+    <p>Нажми пробел, стрелку вверх или кнопку «Прыжок». На телефоне можно нажимать на экран.</p>
+  </main>
+
+  <script>
+    const canvas = document.getElementById("game");
+    const ctx = canvas.getContext("2d");
+    const jumpButton = document.getElementById("jump");
+
+    const groundY = 345;
+    const car = { x: 105, y: groundY - 48, w: 112, h: 48, vy: 0 };
+    let obstacles = [];
+    let score = 0;
+    let speed = 6;
+    let spawnTimer = 50;
+    let running = true;
+    let gameOver = false;
+
+    function jump() {
+      if (gameOver) {
+        reset();
+        return;
+      }
+      if (car.y >= groundY - car.h - 1) car.vy = -14;
+    }
+
+    function reset() {
+      obstacles = [];
+      score = 0;
+      speed = 6;
+      spawnTimer = 50;
+      car.y = groundY - car.h;
+      car.vy = 0;
+      gameOver = false;
+      running = true;
+    }
+
+    document.addEventListener("keydown", (e) => {
+      if (e.code === "Space" || e.code === "ArrowUp") {
+        e.preventDefault();
+        jump();
+      }
+    });
+    jumpButton.addEventListener("click", jump);
+    canvas.addEventListener("pointerdown", jump);
+
+    function drawBackground() {
+      const sky = ctx.createLinearGradient(0, 0, 0, groundY);
+      sky.addColorStop(0, "#f48c79");
+      sky.addColorStop(1, "#ffe0a2");
+      ctx.fillStyle = sky;
+      ctx.fillRect(0, 0, canvas.width, groundY);
+
+      // Облака
+      ctx.fillStyle = "rgba(255,255,255,.28)";
+      for (const [x, y, r] of [[120, 75, 32], [155, 70, 25], [690, 90, 35], [730, 82, 25]]) {
+        ctx.beginPath();
+        ctx.arc(x, y, r, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      // Дальние силуэты
+      ctx.fillStyle = "#62616a";
+      ctx.fillRect(0, 220, canvas.width, 80);
+      ctx.fillStyle = "#484950";
+      for (let x = 0; x < canvas.width; x += 95) {
+        ctx.fillRect(x, 205 + (x % 3) * 5, 78, 95);
+      }
+
+      // Земля
+      ctx.fillStyle = "#303631";
+      ctx.fillRect(0, groundY, canvas.width, canvas.height - groundY);
+      ctx.fillStyle = "#697456";
+      ctx.fillRect(0, groundY, canvas.width, 7);
+
+      // Разметка дороги
+      ctx.fillStyle = "#b9b39a";
+      for (let x = 0; x < canvas.width; x += 90) {
+        ctx.fillRect(x, groundY + 42, 48, 4);
+      }
+    }
+
+    function drawCar() {
+      const x = car.x, y = car.y;
+
+      // Тень
+      ctx.fillStyle = "rgba(0,0,0,.25)";
+      ctx.beginPath();
+      ctx.ellipse(x + 55, groundY + 3, 60, 8, 0, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Кузов
+      ctx.fillStyle = "#c9d4d6";
+      ctx.beginPath();
+      ctx.moveTo(x + 5, y + 30);
+      ctx.lineTo(x + 20, y + 13);
+      ctx.lineTo(x + 45, y + 5);
+      ctx.lineTo(x + 78, y + 7);
+      ctx.lineTo(x + 101, y + 25);
+      ctx.lineTo(x + 110, y + 33);
+      ctx.lineTo(x + 106, y + 43);
+      ctx.lineTo(x + 9, y + 43);
+      ctx.closePath();
+      ctx.fill();
+
+      // Окна
+      ctx.fillStyle = "#526775";
+      ctx.beginPath();
+      ctx.moveTo(x + 26, y + 14);
+      ctx.lineTo(x + 47, y + 8);
+      ctx.lineTo(x + 61, y + 9);
+      ctx.lineTo(x + 65, y + 24);
+      ctx.lineTo(x + 20, y + 24);
+      ctx.closePath();
+      ctx.fill();
+      ctx.beginPath();
+      ctx.moveTo(x + 68, y + 9);
+      ctx.lineTo(x + 77, y + 10);
+      ctx.lineTo(x + 97, y + 25);
+      ctx.lineTo(x + 71, y + 24);
+      ctx.closePath();
+      ctx.fill();
+
+      // Бамперы и фары
+      ctx.fillStyle = "#f5f0d0";
+      ctx.fillRect(x + 99, y + 29, 9, 6);
+      ctx.fillStyle = "#59636b";
+      ctx.fillRect(x + 6, y + 38, 104, 5);
+
+      // Колёса
+      for (const wx of [x + 24, x + 82]) {
+        ctx.fillStyle = "#202328";
+        ctx.beginPath();
+        ctx.arc(wx, y + 42, 12, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = "#aeb6b8";
+        ctx.beginPath();
+        ctx.arc(wx, y + 42, 5, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+
+    function drawObstacle(o) {
+      ctx.fillStyle = "#8c5033";
+      ctx.fillRect(o.x, groundY - o.h, o.w, o.h);
+      ctx.fillStyle = "#b87845";
+      ctx.fillRect(o.x + 5, groundY - o.h + 5, o.w - 10, 7);
+      ctx.fillStyle = "#573c2f";
+      ctx.fillRect(o.x + 8, groundY - 9, 8, 9);
+    }
+
+    function update() {
+      if (!running) return;
+
+      car.vy += 0.7;
+      car.y += car.vy;
+      if (car.y > groundY - car.h) {
+        car.y = groundY - car.h;
+        car.vy = 0;
+      }
+
+      spawnTimer--;
+      if (spawnTimer <= 0) {
+        const h = 28 + Math.random() * 28;
+        obstacles.push({ x: canvas.width + 10, w: 25 + Math.random() * 18, h });
+        spawnTimer = 65 + Math.random() * 55;
+      }
+
+      for (const o of obstacles) {
+        o.x -= speed;
+
+        const carLeft = car.x + 12;
+        const carRight = car.x + car.w - 8;
+        const carTop = car.y + 8;
+        const carBottom = car.y + car.h - 2;
+        const obsTop = groundY - o.h;
+
+        if (carRight > o.x && carLeft < o.x + o.w && carBottom > obsTop && carTop < groundY) {
+          running = false;
+          gameOver = true;
+        }
+      }
+
+      obstacles = obstacles.filter(o => o.x + o.w > 0);
+      score++;
+      speed = 6 + Math.min(score / 500, 5);
+    }
+
+    function draw() {
+      drawBackground();
+      obstacles.forEach(drawObstacle);
+      drawCar();
+
+      ctx.fillStyle = "#fff";
+      ctx.font = "bold 22px Arial";
+      ctx.fillText("Счёт: " + Math.floor(score / 10), 20, 35);
+
+      if (gameOver) {
+        ctx.fillStyle = "rgba(0,0,0,.62)";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.fillStyle = "#fff";
+        ctx.textAlign = "center";
+        ctx.font = "bold 42px Arial";
+        ctx.fillText("Игра окончена", canvas.width / 2, 185);
+        ctx.font = "22px Arial";
+        ctx.fillText("Нажми пробел или кнопку, чтобы начать заново", canvas.width / 2, 230);
+        ctx.textAlign = "left";
+      }
+    }
+
+    function loop() {
+      update();
+      draw();
+      requestAnimationFrame(loop);
+    }
+
+    loop();
+  </script>
+</body>
+</html>
